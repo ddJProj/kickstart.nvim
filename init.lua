@@ -1,3 +1,5 @@
+-- Congfig-nvim-KS
+
 --[[
 
 =====================================================================
@@ -91,7 +93,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -99,10 +101,10 @@ vim.g.have_nerd_font = false
 --  For more options, you can see `:help option-list`
 
 -- Make line numbers default
-vim.opt.number = true
+--vim.opt.number = true
 -- You can also add relative line numbers, for help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = 'a'
@@ -156,6 +158,7 @@ vim.opt.scrolloff = 10
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
+require 'custom.mappings'
 
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
@@ -237,7 +240,7 @@ require('lazy').setup({
   --  This is equivalent to:
   --    require('Comment').setup({})
 
-  -- "gc" to comment visual regions/lines
+  -- NOTE: "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
 
   -- Here is a more advanced example where we pass configuration
@@ -366,6 +369,10 @@ require('lazy').setup({
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+
+      -- Add a key mapping to search through marks using Telescope
+      vim.keymap.set('n', '<leader>sm', builtin.marks, { desc = '[S]earch [M]arks' })
+
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
@@ -539,7 +546,10 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
+        clangd = {},
+        astro = {},
+        html = {},
+        rust_analyzer = {},
         -- gopls = {},
         -- pyright = {},
         -- rust_analyzer = {},
@@ -552,6 +562,7 @@ require('lazy').setup({
         -- tsserver = {},
         --
 
+        biome = {},
         lua_ls = {
           -- cmd = {...},
           -- filetypes { ...},
@@ -566,7 +577,30 @@ require('lazy').setup({
             },
           },
         },
+
+        cssls = {},
+              -- Add the new servers here
+        mdx_analyzer = {},
+        marksman = {},
+        markdown_oxide = {
+          -- Uncomment and adjust the path for your Obsidian vault if needed
+          -- settings = {
+          --   workspace_path = "/path/to/your/obsidian/vault"
+          -- }
+        },
+        lemminx = {}, -- XML language server
+
+
       }
+
+      -- FIXME: filetypes
+
+      vim.filetype.add({
+        extension = {
+          astro = "astro",
+          mdx = "mdx",
+        },
+      })
 
       -- Ensure the servers and tools above are installed
       --  To check the current status of installed tools and/or manually install
@@ -581,6 +615,10 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format lua code
+        'xmlformatter', -- XML formatter
+        'css-lsp',
+        'rust-analyzer',
+        'rustfmt',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -601,14 +639,44 @@ require('lazy').setup({
 
   { -- Autoformat
     'stevearc/conform.nvim',
+    keys = {
+      {
+      -- Customize or remove this keymap to your liking
+      "<leader>f",
+      function()
+        require("conform").format({ async = true, lsp_fallback = true })
+      end,
+      mode = "",
+      desc = "Format buffer",
+      },
+    },
     opts = {
       notify_on_error = false,
       format_on_save = {
         timeout_ms = 500,
         lsp_fallback = true,
       },
+      -- FIXME: TODO: INCLUDE YOUR FORMATTERS HERE W/ LANG
       formatters_by_ft = {
+        rust = { "rustfmt" },
         lua = { 'stylua' },
+        javascript =
+        { { "prettierd", "prettier", "biome" } },
+        html = { "prettierd", "prettier" },
+        cpp = { "clang-format"},
+        c = { "clang-format" },
+        astro = { "prettierd" },
+        xml = { "xmlformatter", "xmlformat" },
+        typescript = { "prettierd", "biome" },
+        typescriptreact = { "prettierd", "biome" },
+        markdown = { "prettierd" },
+        mdx = { "prettierd" },
+        css = { "prettierd" }, -- Use Prettier for CSS
+        scss = { "prettierd" }, -- Also for SCSS if you use it
+        less = { "prettierd" }, -- And for Less if you use it
+
+        ["markdown.obsidian"] = { },  -- No formatter for Obsidian markdown
+
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -652,6 +720,9 @@ require('lazy').setup({
       -- Adds other completion capabilities.
       --  nvim-cmp does not ship with all sources by default. They are split
       --  into multiple repos for maintenance purposes.
+      -- NOTE: added buff and lua
+      'hrsh7th/cmp-buffer',
+      'hrsh7th/cmp-nvim-lua',
       'hrsh7th/cmp-nvim-lsp',
       'hrsh7th/cmp-path',
     },
@@ -724,18 +795,31 @@ require('lazy').setup({
     end,
   },
 
-  { -- You can easily change to a different colorscheme.
+  {
+    -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`
-    'folke/tokyonight.nvim',
-    priority = 1000, -- make sure to load this before all the other start plugins
+    --
+
+    -- make sure to load this before all the other start plugins
+    --'folke/tokyonight.nvim',
+    -- priority = 1000,
+    --
+    'catppuccin/nvim',
+    -- name = 'catppuccin',
+    priority = 1000,
     init = function()
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
+      --
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      -- vim.cmd.colorscheme 'tokyonight-night'
+      -- Enable termguicolors to ensure colors are displayed correctly
+      vim.opt.termguicolors = true
+      -- setup must be called before loading
+      vim.cmd.colorscheme 'catppuccin-mocha'
 
       -- You can configure highlights by doing something like
       vim.cmd.hi 'Comment gui=none'
@@ -823,15 +907,20 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
+
+  require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.indent_line',
+
+  -- require 'kickstart.plugins.fugitive',
+  -- require 'kickstart.plugins.filetree',
+  require 'kickstart.plugins.autopairs',
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {
   ui = {
     -- If you have a Nerd Font, set icons to an empty table which will use the
@@ -853,6 +942,97 @@ require('lazy').setup({
     },
   },
 })
+
+vim.api.nvim_create_user_command("PrettierdRestart", function()
+  vim.fn.system("pkill prettierd")
+  vim.notify("Prettierd restarted")
+end, {})
+
+
+
+---------------------
+
+-- FIXME : FIND AND REPLACE
+
+-- Global Replace function
+function GlobalReplace()
+  local search = vim.fn.input("Search for: ")
+  if search == "" then return end
+  local replace = vim.fn.input("Replace with: ")
+  local escaped_search = search:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+  vim.cmd(string.format("%%s/%s/%s/g", escaped_search, replace))
+  local num_subs = vim.fn.eval("''")
+  print(string.format("\nReplaced %s occurrences", num_subs))
+end
+
+-- Project Search and Replace function
+local function project_search_and_replace()
+  local search = vim.fn.input("Search string: ")
+  if search == "" then return end
+  local replace = vim.fn.input("Replace with: ")
+  require('telescope.builtin').grep_string({
+    search = search,
+    use_regex = false,
+  })
+  local confirm = vim.fn.input("Replace all occurrences? (y/n): ")
+  if confirm:lower() ~= 'y' then return end
+  local command = string.format("rg '%s' -l | xargs sed -i 's/%s/%s/g'", search:gsub("'", "'\\''"), search:gsub("/", "\\/"), replace:gsub("/", "\\/"))
+  vim.fn.system(command)
+  print("Replacement complete.")
+end
+
+-- Create commands (with uppercase first letters)
+vim.api.nvim_create_user_command("FR", GlobalReplace, {})
+vim.api.nvim_create_user_command("ProjectReplace", project_search_and_replace, {})
+
+-- Keymaps
+vim.keymap.set('n', '<leader>cg', ':FR<CR>', { noremap = true, silent = true, desc = "File - Global Find & Replace" })
+vim.keymap.set('n', '<leader>cf', ':ProjectReplace<CR>', { noremap = true, silent = true, desc = "RipGrep Project - Find & Replace" })
+
+
+
+
+---------------
+
+
+
+
+
+
+
+
+-- Define a function to add the current file to bookmarks
+local function add_to_bookmarks()
+  -- Get the currently selected file in NeoTree
+  local selected_file = vim.fn.expand '%'
+
+  -- Add the selected file to bookmarks using Telescope
+  require('telescope.builtin').marks {
+    marks = {
+      { name = 'NeoTree', value = selected_file },
+    },
+    attach_mappings = function(_, map)
+      map('i', '<BS>', function(prompt_bufnr)
+        local entry = require('telescope.actions.state').get_selected_entry(prompt_bufnr)
+        -- Your logic to handle removing the mark
+        -- For example:
+        -- Remove the mark with the selected file
+        print('Removing mark:', entry.value)
+        return require('telescope.actions').close(prompt_bufnr)
+      end)
+      map('n', '<BS>', function(prompt_bufnr)
+        local entry = require('telescope.actions.state').get_selected_entry(prompt_bufnr)
+        -- Your logic to handle removing the mark
+        -- For example:
+        -- Remove the mark with the selected file
+        print('Removing mark:', entry.value)
+        require('telescope.actions').close(prompt_bufnr)
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<BS>', true, false, true), 'n', true)
+      end)
+      return true
+    end,
+  }
+end
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
